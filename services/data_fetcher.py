@@ -4,7 +4,7 @@ import re
 import requests
 import yfinance as yf
 from core.schemas import StockArticle
-
+import os  # 추가: 환경 변수 접근을 위한 모듈
 
 def _extract_meta_description(html: str) -> Optional[str]:
     # property="og:description" content="..."
@@ -71,9 +71,41 @@ def _extract_first_paragraph(html: str) -> Optional[str]:
     return None
 
 
+def _generate_ai_summary(title: str, publisher: str) -> str:
+    """
+    OpenRouter LLM을 사용하여 AI 요약을 생성합니다.
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        return "요약 생성 실패: API 키 미설정"
+    
+    url = "https://api.openrouter.ai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "openai-gpt-3.5-turbo",
+        "messages": [{"role": "user", "content": f"You are a financial analyst agent. Write a 1-sentence summary of what this stock news headline is about. Headline: '{title}'"}],
+        "max_tokens": 50,
+        "temperature": 0.3,
+        "timeout": 5
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        # 응답 구조에 따라 요약 텍스트 추출
+        summary = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        return summary if summary else "요약 생성 실패"
+    except Exception as e:
+        return f"요약 생성 실패: {str(e)}"
+
+
 def _fetch_summary_from_url(url: str) -> str:
     """
-    Fetch the article page and extract the summary from meta tags or content.
+    URL에서 요약을 스크래핑하거나 AI 요약을 생성합니다.
     """
     try:
         headers = {
@@ -83,18 +115,20 @@ def _fetch_summary_from_url(url: str) -> str:
         }
         resp = requests.get(url, timeout=10, headers=headers)
         if resp.status_code == 200:
-            # First try meta description
+            # 메타 설명 먼저 시도
             desc = _extract_meta_description(resp.text)
             if desc:
                 return desc
             
-            # Fallback to first paragraph
+            # 첫 번째 단락 시도
             first_p = _extract_first_paragraph(resp.text)
             if first_p:
                 return first_p
+            
+            # AI 요약 생성
+            return _generate_ai_summary("뉴스 제목 없음", "미 known")
     except Exception:
-        pass
-    return ""
+        return "요약 생성 실패"
 
 
 def fetch_stock_news(ticker: str) -> dict:
@@ -132,18 +166,17 @@ def fetch_stock_news(ticker: str) -> dict:
                 else:
                     published_date = datetime.now()
                 
-                # 여러 필드를 후보로 삼아 요약을 추출합니다.
+                # 요약 생성
                 summary = (
                     news_item.get('summary')
                     or news_item.get('shortDescription')
                     or news_item.get('description')
                     or ''
                 )
-
-                # yfinance 뉴스 항목에 요약이 제공되지 않는 경우가 많으므로,
-                # 원문 링크의 HTML 메타 태그(og:description / description)를 스크래핑합니다.
-                if not summary and link:
-                    summary = _fetch_summary_from_url(link)
+                
+                # 요약이 비어 있으면 AI 요약 생성
+                if not summary or not summary.strip():
+                    summary = _generate_ai_summary(title, source)
                 
                 article = StockArticle(
                     title=title,
