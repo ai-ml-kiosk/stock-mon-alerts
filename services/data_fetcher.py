@@ -1,14 +1,14 @@
-# services/data_fetcher.py
 import os
 import requests
 from typing import List, Optional
 import re
 from core.schemas import StockArticle
-import datetime
-
-# OpenRouter API 호출 시 Cloudflare IP 직접 사용 및 Host 헤더 설정
+import datetime# OpenRouter API 호출 시 Cloudflare IP 직접 사용 및 Host 헤더 설정
 OPENROUTER_IP = "172.67.209.117"
 OPENROUTER_HOST = "api.openrouter.ai"
+
+# LLM_BASE_URL을 환경 변수에서 읽고, 없으면 Groq 기본 URL을 폴백
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
 
 def _extract_meta_description(html: str) -> Optional[str]:
     # property="og:description" content="..."
@@ -63,8 +63,7 @@ def _extract_first_paragraph(html: str) -> Optional[str]:
             html,
             re.IGNORECASE | re.DOTALL
         )
-        content = content_match.group(1) if content_match else html
-    
+        content = content_match.group(1) if content_match else html    
     # Find first paragraph with reasonable length
     p_matches = re.findall(r'<p[^>]*>(.*?)</p>', content, re.IGNORECASE | re.DOTALL)
     for p_text in p_matches:
@@ -79,25 +78,29 @@ def _generate_ai_summary(title: str, publisher: str) -> str:
     """
     OpenRouter LLM을 사용하여 AI 요약을 생성합니다.
     Cloudflare IP 직접 사용 및 Host 헤더 주입으로 DNS 차단 우회.
+    LLM_BASE_URL 환경 변수에 따라 베이스 URL을 동적으로 변경하고,
+    Groq가 사용 중이면 모델을 'llama3-8b-8192'로 폴백합니다.
     """
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         return "요약 생성 실패: API 키 미설정"
     
-    url = f"https://{OPENROUTER_IP}/v1/chat/completions"
+    # 모델 선택 로직: Groq URL이면 llama3-8b-8192, 그 외에는 기본 gpt-3.5-turbo
+    model_name = "llama3-8b-8192" if "groq.com" in LLM_BASE_URL else "gpt-3.5-turbo"
+    
+    url = f"{LLM_BASE_URL}/chat/completions"
     headers = {
         "Host": OPENROUTER_HOST,
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "openai-gpt-3.5-turbo",
+        "model": model_name,
         "messages": [{"role": "user", "content": f"You are a financial analyst agent. Write a 1-sentence summary of what this stock news headline is about. Headline: '{title}'"}],
         "max_tokens": 50,
         "temperature": 0.3
     }
-    
-    try:
+        try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
@@ -141,8 +144,7 @@ def _fetch_summary_from_url(url: str) -> str:
 def fetch_stock_news(ticker: str) -> dict:
     """
     주식 티커(ticker)를 사용하여 현재 시장 가격과 최근 뉴스 데이터를 가져옵니다.
-    
-    Args:
+        Args:
         ticker: 주식 티커 심볼 (예: "AAPL", "GOOGL")
         
     Returns:
@@ -151,8 +153,7 @@ def fetch_stock_news(ticker: str) -> dict:
     try:
         ticker_obj = yf.Ticker(ticker)
         info = ticker_obj.info
-        
-        # 현재 가격 가져오기
+                # 현재 가격 가져오기
         current_price = info.get('currentPrice') or info.get('regularMarketPrice') or 0.0
         
         # 뉴스 데이터 가져오기
@@ -166,15 +167,13 @@ def fetch_stock_news(ticker: str) -> dict:
                 source = news_item.get('publisher', '')
                 link = news_item.get('link', '')
                 
-                # 발행일 변환
-                published_date: datetime
+                # 발행일 변환                published_date: datetime
                 if 'providerPublishTime' in news_item:
                     published_date = datetime.fromtimestamp(news_item['providerPublishTime'])
                 else:
                     published_date = datetime.now()
                 
-                # 요약 생성
-                summary = (
+                # 요약 생성                summary = (
                     news_item.get('summary')
                     or news_item.get('shortDescription')
                     or news_item.get('description')
