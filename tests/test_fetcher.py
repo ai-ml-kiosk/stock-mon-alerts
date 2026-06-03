@@ -7,7 +7,7 @@ from core.schemas import StockArticle
 @pytest.fixture
 def mock_yfinance_response():
     """yfinance Ticker 객체를 모킹하는 픽스처"""
-    with patch('services.data_fetcher.yfinance.Ticker') as MockTicker:
+    with patch('services.data_fetcher.yf.Ticker') as MockTicker:
         mock_ticker = MagicMock()
         mock_ticker.info = {
             'regularMarketPrice': 175.0
