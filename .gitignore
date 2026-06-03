@@ -4,3 +4,61 @@
 .vscode/launch.json
 .vscode/ipch
 .aider*
+
+# ==========================================
+# 1. Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ==========================================
+# 2. Python Environment & Dependencies
+# ==========================================
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+artifacts/
+
+# Pipenv / Poetry files (if used, lock files are kept, but local cache is ignored)
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Python bytecode & cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ==========================================
+# 3. Streamlit & Frontend Cache
+# ==========================================
+.streamlit/config.toml
+.streamlit/secrets.toml
+# Note: If you want to share a default config template, do not ignore config.toml.
+# But ALWAYS ignore secrets.toml to protect local API keys.
+
+# ==========================================
+# 4. AI Coding Agents (Aider / Cline / Codex)
+# ==========================================
+.aider*
+# This blocks Aider's internal scratch files, chat history logs, and cache maps.
+
+# ==========================================
+# 5. Environment Variables & Sensitive Data
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.env
+secrets.json
+auth.json
