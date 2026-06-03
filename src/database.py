@@ -17,10 +17,15 @@ def create_tables(engine):
     This function handles schema creation/migration logic.
     """
     print("Creating database tables...")
-    # Base.metadata.create_all() will now include last_login_at because it's defined in User model
-    Base.metadata.create_all(bind=engine)
-    print("Tables created successfully.")
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Tables created successfully.")
+    except Exception as e:
+        print(f"Error creating tables: {e}")
 
 if __name__ == '__main__':
     engine, SessionLocal = create_engine_and_session()
-    create_tables(engine)
+    try:
+        create_tables(engine)
+    except Exception as e:
+        print(f"Error creating tables: {e}")
