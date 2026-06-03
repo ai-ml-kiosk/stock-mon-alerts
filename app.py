@@ -1,5 +1,6 @@
-import streamlitas st
-from datetime import datetime, timedeltafrom typing import List
+import streamlit as st
+from datetime import datetime, timedelta
+from typing import List
 from src.schemas import StockArticle
 from services.data_fetcher import get_stock_info_with_news
 from services.article_filter import filter_by_window
@@ -26,13 +27,15 @@ time_frame = st.selectbox(
 # Convert selected time frame to number of days
 window_days = TIME_FRAME_DAYS[time_frame]
 
-# Button to fetch dataif st.button("Fetch Data"):
+# Button to fetch data
+if st.button("Fetch Data"):
     # Fetch stock data and news articles
     result = get_stock_info_with_news(ticker)
     stock_data = result.get("stock_data", {})
     news_articles: List[StockArticle] = result.get("news_articles", [])
     
-    # Filter articles based on selected window    filtered_articles = filter_by_window(news_articles, window_days)
+    # Filter articles based on selected window
+    filtered_articles = filter_by_window(news_articles, window_days)
     
     # Display current price information
     current_price = stock_data.get("current_price")
@@ -45,7 +48,8 @@ window_days = TIME_FRAME_DAYS[time_frame]
     else:
         st.write(f"### {name} ({ticker})")
         st.write("Current price: **N/A**")
-        # Display filtered news articles
+    
+    # Display filtered news articles
     if filtered_articles:
         st.subheader("Filtered News Articles")
         for article in filtered_articles:
