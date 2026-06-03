@@ -13,7 +13,7 @@ def filter_by_window(articles: list[StockArticle], window_days: int) -> list[Sto
     Returns:
         window_days 이후에 발행된 기사 목록
     """
-    # 현재 timezone-aware 날짜에서 window_days를 뺀 임계 날짜 계산
+    # 현재 timezone-aware UTC 날짜에서 window_days를 뺀 임계 날짜 계산
     threshold_date = datetime.now(timezone.utc) - timedelta(days=window_days)
     
     # 임계 날짜 이후에 발행된 기사만 필터링
