@@ -52,7 +52,10 @@ if st.button("Search"):
             for article in filtered_articles:
                 st.markdown(f"[{article.title}]({article.link})")
                 st.write(f"Published: {article.published_date}")
-                st.write(f"Summary: {article.summary}")
+                if article.summary and article.summary.strip():
+                    st.write(f"Summary: {article.summary}")
+                else:
+                    st.write("*Summary unavailable. Click the link above to read the full story on the publisher's site.*")
                 st.write("---")
         else:
             st.write("No articles found for the selected time frame.")
