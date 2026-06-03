@@ -42,17 +42,56 @@ def _extract_meta_description(html: str) -> Optional[str]:
     return None
 
 
+def _extract_first_paragraph(html: str) -> Optional[str]:
+    """Extract the first meaningful paragraph from the article body."""
+    # Try to find article content
+    article_match = re.search(
+        r'<article[^>]*>(.*?)</article>',
+        html,
+        re.IGNORECASE | re.DOTALL
+    )
+    if article_match:
+        content = article_match.group(1)
+    else:
+        # Try common content containers
+        content_match = re.search(
+            r'<div[^>]*class=["\'][^"\']*(?:content|article|post|story)[^"\']*["\'][^>]*>(.*?)</div>',
+            html,
+            re.IGNORECASE | re.DOTALL
+        )
+        content = content_match.group(1) if content_match else html
+    
+    # Find first paragraph with reasonable length
+    p_matches = re.findall(r'<p[^>]*>(.*?)</p>', content, re.IGNORECASE | re.DOTALL)
+    for p_text in p_matches:
+        text = re.sub(r'<[^>]+>', '', p_text).strip()
+        if len(text) > 50:  # Only return paragraphs with substantial content
+            return text[:500]  # Limit to 500 chars
+    
+    return None
+
+
 def _fetch_summary_from_url(url: str) -> str:
     """
-    Fetch the article page and extract the summary from meta tags.
+    Fetch the article page and extract the summary from meta tags or content.
     """
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; NewsBot/0.1)"}
-        resp = requests.get(url, timeout=5, headers=headers)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; NewsBot/0.1)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5"
+        }
+        resp = requests.get(url, timeout=10, headers=headers)
         if resp.status_code == 200:
+            # First try meta description
             desc = _extract_meta_description(resp.text)
             if desc:
                 return desc
+            
+            # Fallback to first paragraph
+            first_p = _extract_first_paragraph(resp.text)
+            if first_p:
+                return first_p
     except Exception:
         pass
     return ""
