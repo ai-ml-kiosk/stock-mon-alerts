@@ -17,9 +17,15 @@ def filter_by_window(articles: list[StockArticle], window_days: int) -> list[Sto
     threshold_date = datetime.now(timezone.utc) - timedelta(days=window_days)
     
     # 임계 날짜 이후에 발행된 기사만 필터링
-    filtered_articles = [
-        article for article in articles
-        if article.published_date >= threshold_date
-    ]
+    # published_date가 timezone-naive인 경우 UTC로 강제 변환
+    filtered_articles = []
+    for article in articles:
+        published_date = article.published_date
+        # timezone 정보가 없으면 UTC로 설정
+        if published_date.tzinfo is None:
+            published_date = published_date.replace(tzinfo=timezone.utc)
+        
+        if published_date >= threshold_date:
+            filtered_articles.append(article)
     
     return filtered_articles
