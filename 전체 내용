@@ -1,0 +1,27 @@
+import streamlit as st
+from datetime import datetime
+from src.schemas import StockArticle
+from services.data_fetcher import fetch_stock_news
+from services.article_filter import filter_by_window
+
+# 기존 코드 수정 부분
+if st.button("Search"):
+    try:
+        result = fetch_stock_news(ticker)
+        current_price = result.get('current_price')
+        articles = result.get('articles', [])
+        filtered_articles = filter_by_window(articles, window_days)
+        if current_price:
+            st.metric("Current Price", value=f"{current_price} USD")
+        else:
+            st.metric("Current Price", value="N/A")
+        if filtered_articles:
+            st.subheader("Filtered News Articles")
+            for article in filtered_articles:
+                st.markdown(f"[{article.title}]({article.link})")
+                st.write(f"Published: {article.published_date}")
+                st.write(f"Summary: {article.summary or '*요약 불가능. 참고 사이트에서 확인하세요.*}")
+        else:
+            st.write("No articles found for the selected time frame.")
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
