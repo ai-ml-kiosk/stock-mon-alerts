@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import pytest
-from src.schemas import StockArticle
+from core.schemas import StockArticle
 from services.article_filter import filter_by_window
 
 
