@@ -1,4 +1,5 @@
-import pytestfrom unittest.mock import patch
+import pytest
+from unittest.mock import patch
 from services.data_fetcher import fetch_stock_news
 from core.schemas import StockArticle
 
@@ -17,5 +18,6 @@ def test_fetch_stock_news_aapl():
         mock_ticker.info = mock_response
         result = fetch_stock_news('AAPL')
         assert result['current_price'] == 175.32
-        assert len(result['articles']) == 2        assert result['articles'][0].title == "AAPL 주가 상승"
+        assert len(result['articles']) == 2
+        assert result['articles'][0].title == "AAPL 주가 상승"
         assert result['articles'][1].title == "AAPL 출시"
