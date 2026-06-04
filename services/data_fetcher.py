@@ -4,6 +4,7 @@ from typing import List, Optional
 import re
 import datetime
 import yfinance as yf
+import email.utils
 from core.schemas import StockArticle
 
 OPENROUTER_IP = "172.67.209.117"
@@ -65,22 +66,13 @@ def _extract_first_paragraph(html: str) -> Optional[str]:
 
 def _generate_ai_summary(title: str, publisher: str) -> str:
     """
-    OpenRouter 또는 Groq LLM을 사용하여 AI 요약을 생성합니다.
+    Groq LLM을 사용하여 AI 요약을 생성합니다.
     """
-    is_groq = "groq.com" in LLM_BASE_URL
-    
-    # Explicitly pull the key required by the target destination
-    if is_groq:
-        api_key = os.getenv("GROQ_API_KEY")
-        error_msg = "요약 생성 실패: GROQ_API_KEY 미설정"
-    else:
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        error_msg = "요약 생성 실패: OPENROUTER_API_KEY 미설정"
-        
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        return error_msg
+        return "요약 생성 실패: GROQ_API_KEY 미설정"
 
-    model_name = "llama3-8b-8192" if is_groq else "gpt-3.5-turbo"
+    model_name = "llama-3.1-8b-instant"
     url = f"{LLM_BASE_URL}/chat/completions"
     
     headers = {
@@ -88,9 +80,6 @@ def _generate_ai_summary(title: str, publisher: str) -> str:
         "Content-Type": "application/json",
     }
     
-    if "openrouter.ai" in LLM_BASE_URL or OPENROUTER_IP in LLM_BASE_URL:
-        headers["Host"] = OPENROUTER_HOST
-
     payload = {
         "model": model_name,
         "messages": [{
@@ -138,6 +127,7 @@ def _fetch_summary_from_url(url: str) -> str:
 def fetch_stock_news(ticker: str) -> dict:
     """
     주식 티커(ticker)를 사용하여 현재 시장 가격과 최근 뉴스 데이터를 가져옵니다.
+    최신 yfinance 구조의 중첩된 'content' 키를 완벽히 파싱합니다.
     """
     try:
         ticker_obj = yf.Ticker(ticker)
@@ -148,22 +138,26 @@ def fetch_stock_news(ticker: str) -> dict:
 
         for news_item in news_list:
             try:
-                title = news_item.get('title', '')
-                source = news_item.get('publisher', '')
-                link = news_item.get('link', '')
+                # Sandbox 검증 결과 반영: 모든 데이터는 'content' 노드 하위에 존재합니다.
+                content_data = news_item.get('content', {})
+                if not content_data:
+                    continue
+                
+                title = content_data.get('title') or ''
+                source = content_data.get('provider', {}).get('displayName') or ''
+                link = content_data.get('canonicalUrl', {}).get('url') or ''
 
-                if 'providerPublishTime' in news_item:
-                    published_date = datetime.datetime.fromtimestamp(news_item['providerPublishTime'])
+                # ISO 날짜 파싱 ('2026-06-03T19:59:14Z' 포맷 대응)
+                pub_date_str = content_data.get('pubDate')
+                if pub_date_str:
+                    published_date = datetime.datetime.fromisoformat(pub_date_str.replace('Z', '+00:00'))
                 else:
                     published_date = datetime.datetime.now()
 
-                summary = (
-                    news_item.get('summary')
-                    or news_item.get('shortDescription')
-                    or news_item.get('description')
-                    or ''
-                )
+                # 기본 요약문 매핑 추출
+                summary = content_data.get('summary') or content_data.get('description') or ''
 
+                # 기본 요약이 없거나 공백일 때만 Groq AI 엔진을 작동시킵니다.
                 if not summary or not summary.strip():
                     summary = _generate_ai_summary(title, source)
 
