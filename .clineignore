@@ -1,0 +1,6 @@
+# Prevent Cline from reading massive cache or system directories
+.venv/
+__pycache__/
+.pytest_cache/
+artifacts/
+.git/
